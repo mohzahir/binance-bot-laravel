@@ -24,6 +24,7 @@ class RunTradingBot extends Command
 
         foreach ($assets as $asset) {
             try {
+                // Fetch Data (Binance defaults to 500 candles, which is perfect for a 200 EMA)
                 $ticks = $api->candlesticks($asset->symbol, "15m");
                 
                 if (isset($ticks['code']) || empty($ticks)) {
@@ -32,19 +33,38 @@ class RunTradingBot extends Command
                 }
 
                 $closes = $this->extractClosingPrices($ticks);
+                $currentPrice = end($closes);
+
+                // --- THE NEW BOT BRAIN: CALCULATE ALL INDICATORS ---
                 $rsi = $this->calculateRSI($closes, 14);
-                Log::info("Monitoring {$asset->symbol} | Current RSI: " . round($rsi, 2));
+                $ema200 = $this->calculateEMA($closes, 200);
+                $macdData = $this->calculateMACD($closes);
 
                 $openTrade = Trade::where('symbol', $asset->symbol)
                                   ->whereNull('exit_price')
                                   ->first();
 
                 if (!$openTrade) {
-                    if ($rsi < 30) {
+                    
+                    // Log the metrics so you can watch it think
+                    $this->line("Monitoring {$asset->symbol} | Price: {$currentPrice} | 200 EMA: " . round($ema200, 4) . " | RSI: " . round($rsi, 2));
+
+                    // --- TRIPLE CONFLUENCE ENTRY STRATEGY ---
+                    // 1. Are we in an uptrend? (Price > 200 EMA)
+                    $isUptrend = ($currentPrice > $ema200);
+                    
+                    // 2. Is there a pullback? (RSI < 40)
+                    $isOversold = ($rsi < 40);
+                    
+                    // 3. Is momentum shifting up? (MACD crossed above Signal)
+                    $macdCrossedUp = ($macdData['macd'] > $macdData['signal']) && ($macdData['previous_macd'] <= $macdData['signal']);
+
+                    if ($isUptrend && $isOversold && $macdCrossedUp) {
+                        $this->info("🌟 TRIPLE CONFLUENCE SIGNAL MET ON {$asset->symbol}!");
                         $this->executeBuyOrder($api, $asset);
                     }
+
                 } else {
-                    $currentPrice = end($closes);
                     $this->manageOpenPosition($api, $openTrade, $currentPrice);
                 }
 
@@ -294,5 +314,63 @@ class RunTradingBot extends Command
         } catch (\Exception $e) {
             Log::error("Telegram Alert Failed: " . $e->getMessage());
         }
+    }
+
+    /**
+     * Helper: Calculate Exponential Moving Average (EMA)
+     */
+    private function calculateEMA($closes, $period)
+    {
+        if (count($closes) < $period) return null;
+        
+        $multiplier = 2 / ($period + 1);
+        
+        // Calculate Initial SMA to seed the EMA
+        $initialCloses = array_slice($closes, 0, $period);
+        $sma = array_sum($initialCloses) / $period;
+        
+        $ema = $sma;
+        
+        // Calculate EMA for the rest of the dataset
+        for ($i = $period; $i < count($closes); $i++) {
+            $ema = ($closes[$i] - $ema) * $multiplier + $ema;
+        }
+        
+        return $ema;
+    }
+
+    /**
+     * Helper: Calculate MACD (Moving Average Convergence Divergence)
+     * Standard crypto settings: 12, 26, 9
+     */
+    private function calculateMACD($closes, $shortPeriod = 12, $longPeriod = 26, $signalPeriod = 9)
+    {
+        if (count($closes) < $longPeriod + $signalPeriod) return null;
+
+        $macdLine = [];
+        
+        // 1. Calculate the MACD Line (12 EMA - 26 EMA) for every point needed
+        // To get a proper signal line, we need an array of MACD values
+        for ($i = count($closes) - $signalPeriod - 10; $i <= count($closes); $i++) {
+            $slice = array_slice($closes, 0, $i);
+            $ema12 = $this->calculateEMA($slice, $shortPeriod);
+            $ema26 = $this->calculateEMA($slice, $longPeriod);
+            if ($ema12 && $ema26) {
+                $macdLine[] = $ema12 - $ema26;
+            }
+        }
+
+        // 2. Calculate the Signal Line (9 EMA of the MACD Line)
+        $signalLine = $this->calculateEMA($macdLine, $signalPeriod);
+        
+        // 3. Get the latest MACD value
+        $currentMacd = end($macdLine);
+
+        // We return the current MACD, the Signal line, and the previous MACD (to detect a cross)
+        return [
+            'macd' => $currentMacd,
+            'signal' => $signalLine,
+            'previous_macd' => prev($macdLine)
+        ];
     }
 }
