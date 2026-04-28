@@ -198,46 +198,59 @@ class RunTradingBot extends Command
      */
     private function manageOpenPosition($api, $trade, $currentPrice)
     {
+        // --- 1. THE TRAILING STOP LOGIC ---
+        // Define your trailing distance (e.g., 5% behind the peak price)
+        $trailingPercentage = 0.05; 
+        
+        // Calculate where the stop loss SHOULD be based on the current live price
+        $potentialNewStop = $currentPrice * (1 - $trailingPercentage);
+
+        // If the potential new stop is HIGHER than the current saved stop loss, move it up!
+        if ($potentialNewStop > $trade->stop_loss) {
+            $trade->update([
+                'stop_loss' => $potentialNewStop
+            ]);
+            
+            $this->info("📈 Trail Up: Moved Stop-Loss to {$potentialNewStop} USDT.");
+            Log::info("Trailing Stop for {$trade->symbol} raised to {$potentialNewStop}");
+            
+            // Note: We don't send a Telegram alert here, otherwise your phone 
+            // will buzz every minute the coin goes up!
+        }
+
+
+        // --- 2. THE EXIT LOGIC ---
         $triggerType = null;
         $isProfitable = false;
 
-        // 1. Check Exit Conditions
-        if ($currentPrice >= $trade->take_profit) {
-            $triggerType = 'TAKE PROFIT';
-            $isProfitable = true;
-        } elseif ($currentPrice <= $trade->stop_loss) {
-            $triggerType = 'STOP LOSS';
-            $isProfitable = false;
+        // Notice we removed the hard Take-Profit check. 
+        // The bot will ONLY exit when the trailing stop is hit.
+        if ($currentPrice <= $trade->stop_loss) {
+            $triggerType = 'TRAILING STOP LOSS';
+            $isProfitable = ($currentPrice > $trade->entry_price);
         }
 
-        // 2. Execute Exit if Condition is Met
+        // 3. Execute Exit if Condition is Met
         if ($triggerType) {
             $this->warn("🚨 {$triggerType} triggered for {$trade->symbol} at {$currentPrice}!");
 
             try {
-                // 3. EXECUTE THE MARKET SELL ORDER
                 // **********************************************************
-                // WARNING: Uncomment the line below to execute a real SELL!
+                // WARNING: Uncomment to execute a real SELL!
                 // **********************************************************
-                
                 // $order = $api->marketSell($trade->symbol, $trade->quantity);
 
-                // Mocking a successful sell response for testing:
+                // Mocking response for testing:
                 $order = ['status' => 'FILLED'];
 
                 if (isset($order['status']) && $order['status'] == 'FILLED') {
                     
-                    // 4. Update the Database (Closing the trade)
-                    $trade->update([
-                        'exit_price' => $currentPrice
-                    ]);
+                    $trade->update(['exit_price' => $currentPrice]);
 
-                    // 5. Calculate Profit & Loss (PNL)
                     $pnlValue = ($currentPrice - $trade->entry_price) * $trade->quantity;
                     $pnlPercentage = (($currentPrice - $trade->entry_price) / $trade->entry_price) * 100;
                     $pnlFormatted = number_format($pnlPercentage, 2);
 
-                    // 6. Send the Final Telegram Alert
                     $emoji = $isProfitable ? "🚀" : "🛑";
                     $alertMessage = "{$emoji} *POSITION CLOSED: {$triggerType}*\n\n"
                                   . "🤖 *Pair:* {$trade->symbol}\n"
@@ -256,9 +269,7 @@ class RunTradingBot extends Command
                 Log::error("Sell Order Error ({$trade->symbol}): " . $e->getMessage());
             }
         } else {
-            // Position is still open and within safe bounds. 
-            // We just print a status update to the console/logs.
-            $this->line("Holding {$trade->symbol}. Current Price: {$currentPrice}. TP: {$trade->take_profit}, SL: {$trade->stop_loss}");
+            $this->line("Holding {$trade->symbol} @ {$currentPrice}. Trailing Stop: {$trade->stop_loss}");
         }
     }
 
