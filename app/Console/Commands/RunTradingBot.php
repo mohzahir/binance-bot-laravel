@@ -197,8 +197,68 @@ class RunTradingBot extends Command
      */
     private function manageOpenPosition($api, $trade, $currentPrice)
     {
-        // TODO: Logic to check if current price hit stop_loss or take_profit
-        // If yes, execute $api->marketSell() and update Trade record in DB
+        $triggerType = null;
+        $isProfitable = false;
+
+        // 1. Check Exit Conditions
+        if ($currentPrice >= $trade->take_profit) {
+            $triggerType = 'TAKE PROFIT';
+            $isProfitable = true;
+        } elseif ($currentPrice <= $trade->stop_loss) {
+            $triggerType = 'STOP LOSS';
+            $isProfitable = false;
+        }
+
+        // 2. Execute Exit if Condition is Met
+        if ($triggerType) {
+            $this->warn("🚨 {$triggerType} triggered for {$trade->symbol} at {$currentPrice}!");
+
+            try {
+                // 3. EXECUTE THE MARKET SELL ORDER
+                // **********************************************************
+                // WARNING: Uncomment the line below to execute a real SELL!
+                // **********************************************************
+                
+                // $order = $api->marketSell($trade->symbol, $trade->quantity);
+
+                // Mocking a successful sell response for testing:
+                $order = ['status' => 'FILLED'];
+
+                if (isset($order['status']) && $order['status'] == 'FILLED') {
+                    
+                    // 4. Update the Database (Closing the trade)
+                    $trade->update([
+                        'exit_price' => $currentPrice
+                    ]);
+
+                    // 5. Calculate Profit & Loss (PNL)
+                    $pnlValue = ($currentPrice - $trade->entry_price) * $trade->quantity;
+                    $pnlPercentage = (($currentPrice - $trade->entry_price) / $trade->entry_price) * 100;
+                    $pnlFormatted = number_format($pnlPercentage, 2);
+
+                    // 6. Send the Final Telegram Alert
+                    $emoji = $isProfitable ? "🚀" : "🛑";
+                    $alertMessage = "{$emoji} *POSITION CLOSED: {$triggerType}*\n\n"
+                                  . "🤖 *Pair:* {$trade->symbol}\n"
+                                  . "🚪 *Exit Price:* {$currentPrice} USDT\n"
+                                  . "📈 *P/L:* {$pnlFormatted}%\n"
+                                  . "💵 *Net:* " . number_format($pnlValue, 2) . " USDT";
+
+                    $this->sendTelegramAlert($alertMessage);
+
+                    $this->info("Position closed successfully. PNL: {$pnlFormatted}%");
+                    Log::info("SOLD {$trade->quantity} {$trade->symbol} @ {$currentPrice} ({$triggerType})");
+                }
+
+            } catch (\Exception $e) {
+                $this->error("Failed to execute SELL: " . $e->getMessage());
+                Log::error("Sell Order Error ({$trade->symbol}): " . $e->getMessage());
+            }
+        } else {
+            // Position is still open and within safe bounds. 
+            // We just print a status update to the console/logs.
+            $this->line("Holding {$trade->symbol}. Current Price: {$currentPrice}. TP: {$trade->take_profit}, SL: {$trade->stop_loss}");
+        }
     }
 
     /**
