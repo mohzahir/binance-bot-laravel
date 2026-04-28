@@ -1,8 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Hash;
-use App\Models\User;
+// use Illuminate\Support\Facades\Hash;
+// use App\Models\User;
 
 use App\Http\Controllers\BotDashboardController;
 
@@ -17,15 +17,15 @@ Route::domain('bot.hirehub-sd.com')->group(function () {
     });
 });
 
-Route::get('/fix-admin', function () {
-    // This will update the user if found, or create a brand new one if missing
-    $user = User::updateOrCreate(
-        ['email' => 'admin@hirehub-sd.com'], // Search criteria
-        [
-            'name' => 'Zahir Admin',
-            'password' => Hash::make('12345678')
-        ] // Data to update/create
-    );
+// Route::get('/fix-admin', function () {
+//     // This will update the user if found, or create a brand new one if missing
+//     $user = User::updateOrCreate(
+//         ['email' => 'admin@hirehub-sd.com'], // Search criteria
+//         [
+//             'name' => 'Zahir Admin',
+//             'password' => Hash::make('12345678')
+//         ] // Data to update/create
+//     );
     
-    return "SUCCESS: User " . $user->email . " is now securely registered and hashed!";
-});
+//     return "SUCCESS: User " . $user->email . " is now securely registered and hashed!";
+// });
