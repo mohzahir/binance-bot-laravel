@@ -18,15 +18,14 @@ Route::domain('bot.hirehub-sd.com')->group(function () {
 });
 
 Route::get('/fix-admin', function () {
-    // Find the user you created in phpMyAdmin
-    $user = User::where('email', 'admin@hirehub-sd.com')->first();
+    // This will update the user if found, or create a brand new one if missing
+    $user = User::updateOrCreate(
+        ['email' => 'admin@hirehub-sd.com'], // Search criteria
+        [
+            'name' => 'Zahir Admin',
+            'password' => Hash::make('12345678')
+        ] // Data to update/create
+    );
     
-    if ($user) {
-        // Force Laravel to hash the password using your server's APP_KEY
-        $user->password = Hash::make('12345678');
-        $user->save();
-        return "SUCCESS: Password correctly hashed and updated in the database!";
-    }
-    
-    return "ERROR: User not found. Check the email address.";
+    return "SUCCESS: User " . $user->email . " is now securely registered and hashed!";
 });
