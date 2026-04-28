@@ -7,6 +7,7 @@ use Binance\API;
 use App\Models\Asset;
 use App\Models\Trade;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
 
 class RunTradingBot extends Command
 {
@@ -160,9 +161,8 @@ class RunTradingBot extends Command
             // 8. Log the Open Position in the Database
             if (isset($order['status']) && $order['status'] == 'FILLED') {
                 
-                // Calculate our exit parameters automatically
-                $stopLossPrice = $currentPrice * 0.95; // 5% drop
-                $takeProfitPrice = $currentPrice * 1.10; // 10% gain
+                $stopLossPrice = $currentPrice * 0.95; 
+                $takeProfitPrice = $currentPrice * 1.10; 
 
                 Trade::create([
                     'symbol' => $asset->symbol,
@@ -173,7 +173,16 @@ class RunTradingBot extends Command
                     'take_profit' => $takeProfitPrice,
                 ]);
 
-                $this->info("SUCCESS! Trade recorded in database. Stop Loss set at {$stopLossPrice}.");
+                // --- NEW TELEGRAM ALERT ---
+                $alertMessage = "🟢 *NEW TRADE EXECUTED*\n\n"
+                              . "🤖 *Pair:* {$asset->symbol}\n"
+                              . "💰 *Price:* {$currentPrice} USDT\n"
+                              . "⚖️ *Quantity:* {$formattedQuantity}\n"
+                              . "🛡️ *Stop Loss:* {$stopLossPrice} USDT";
+
+                $this->sendTelegramAlert($alertMessage);
+                // --------------------------
+
                 Log::info("BOUGHT {$formattedQuantity} {$asset->symbol} @ {$currentPrice}");
             }
 
@@ -190,5 +199,28 @@ class RunTradingBot extends Command
     {
         // TODO: Logic to check if current price hit stop_loss or take_profit
         // If yes, execute $api->marketSell() and update Trade record in DB
+    }
+
+    /**
+     * Sends a formatted message to your personal Telegram app
+     */
+    private function sendTelegramAlert($message)
+    {
+        $token = env('TELEGRAM_BOT_TOKEN');
+        $chatId = env('TELEGRAM_CHAT_ID');
+
+        if (!$token || !$chatId) return; // Fail silently if not configured
+
+        $url = "https://api.telegram.org/bot{$token}/sendMessage";
+
+        try {
+            Http::post($url, [
+                'chat_id' => $chatId,
+                'text' => $message,
+                'parse_mode' => 'Markdown', // Allows us to use bolding and emojis
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Telegram Alert Failed: " . $e->getMessage());
+        }
     }
 }
