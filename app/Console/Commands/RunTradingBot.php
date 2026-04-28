@@ -23,8 +23,34 @@ class RunTradingBot extends Command
         $assets = Asset::where('status', 'active')->get();
 
         foreach ($assets as $asset) {
+            
+            // --- 1. THE COOLDOWN TIMER LOGIC ---
+            $cooldownMinutes = 60; // Force a 1-hour wait after a trade closes
+
+            // Find the most recently closed trade for this specific coin
+            $lastTrade = Trade::where('symbol', $asset->symbol)
+                              ->whereNotNull('exit_price')
+                              ->orderBy('updated_at', 'desc')
+                              ->first();
+
+            // If a closed trade exists, check how much time has passed
+            if ($lastTrade) {
+                // now() uses Carbon, Laravel's built-in date handler
+                $minutesSinceExit = now()->diffInMinutes($lastTrade->updated_at);
+                
+                if ($minutesSinceExit < $cooldownMinutes) {
+                    $remaining = $cooldownMinutes - $minutesSinceExit;
+                    $this->line("⏳ {$asset->symbol} on cooldown. Resuming in {$remaining} mins.");
+                    
+                    // The 'continue' command forces PHP to skip the rest of the loop 
+                    // and immediately move to the next coin in the array.
+                    continue; 
+                }
+            }
+            // -----------------------------------
+
             try {
-                // Fetch Data (Binance defaults to 500 candles, which is perfect for a 200 EMA)
+                // Fetch Data (Binance API is only called if the cooldown is cleared!)
                 $ticks = $api->candlesticks($asset->symbol, "15m");
                 
                 if (isset($ticks['code']) || empty($ticks)) {
