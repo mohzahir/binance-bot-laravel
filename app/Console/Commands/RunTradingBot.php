@@ -33,6 +33,7 @@ class RunTradingBot extends Command
 
                 $closes = $this->extractClosingPrices($ticks);
                 $rsi = $this->calculateRSI($closes, 14);
+                Log::info("Monitoring {$asset->symbol} | Current RSI: " . round($rsi, 2));
 
                 $openTrade = Trade::where('symbol', $asset->symbol)
                                   ->whereNull('exit_price')
