@@ -48,6 +48,21 @@
         @endif
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+            <div class="bg-gray-800 rounded-lg p-5 border border-gray-700 shadow-lg md:col-span-3 mb-6 flex flex-col md:flex-row justify-between items-center">
+                <div class="mb-4 md:mb-0">
+                    <h2 class="text-lg font-semibold text-gray-300">➕ Add Trading Pair</h2>
+                    <p class="text-xs text-gray-500 mt-1">The bot will automatically pick up newly added pairs on its next 60-second cycle.</p>
+                </div>
+                
+                <form action="/add-asset" method="POST" class="flex space-x-3 w-full md:w-auto">
+                    @csrf
+                    <input type="text" name="symbol" placeholder="e.g., BTCUSDT" class="bg-gray-900 border border-gray-600 rounded px-4 py-2 text-white font-bold uppercase w-full md:w-64 focus:outline-none focus:border-blue-500" required>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded transition-colors shadow-lg">
+                        Add Pair
+                    </button>
+                </form>
+            </div>
             
             <div class="bg-gray-800 rounded-lg p-5 border border-gray-700 shadow-lg md:col-span-3 mb-6">
                 <h2 class="text-lg font-semibold mb-4 text-gray-300">🧠 Bot Brain Diagnostics (Triple Confluence)</h2>
@@ -61,6 +76,7 @@
                                 <th class="pb-2">Discount (RSI)</th>
                                 <th class="pb-2">Momentum (MACD)</th>
                                 <th class="pb-2">Action</th>
+                                <th class="pb-2"></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -99,6 +115,15 @@
                                     @else
                                         <span class="text-gray-500 font-medium">Hunting...</span>
                                     @endif
+                                </td>
+                                <td class="py-3 text-right">
+                                    <form action="/remove-asset/{{ $asset->id }}" method="POST" onsubmit="return confirm('Stop monitoring {{ $asset->symbol }}?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="text-gray-500 hover:text-red-400 font-bold transition-colors">
+                                            ✖
+                                        </button>
+                                    </form>
                                 </td>
                             </tr>
                             @endforeach

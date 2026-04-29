@@ -17,7 +17,10 @@ Route::domain('bot.hirehub-sd.com')->group(function () {
         // --- NEW ACTION ROUTES ---
         Route::post('/toggle-bot', [BotDashboardController::class, 'toggleBot']);
         Route::post('/panic-sell/{tradeId}', [BotDashboardController::class, 'panicSell']);
-        
+       
+        // --- ASSET MANAGEMENT ROUTES ---
+        Route::post('/add-asset', [BotDashboardController::class, 'addAsset']);
+        Route::delete('/remove-asset/{id}', [BotDashboardController::class, 'removeAsset']);
     });
 });
 

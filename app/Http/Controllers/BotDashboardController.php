@@ -98,4 +98,39 @@ class BotDashboardController extends Controller
 
         return back()->with('status', "Panic Sell Executed for {$trade->symbol}!");
     }
+
+    /**
+     * Add a new currency pair to monitor
+     */
+    public function addAsset(\Illuminate\Http\Request $request)
+    {
+        // 1. Validate the input so we don't save empty or duplicate pairs
+        $request->validate([
+            'symbol' => 'required|string|max:15|unique:assets,symbol',
+        ]);
+
+        $symbol = strtoupper($request->symbol);
+
+        // 2. Save it to the database
+        Asset::create([
+            'symbol' => $symbol,
+            'status' => 'active',
+            'allocation_percentage' => 25.00, // Default risk allocation
+        ]);
+
+        return back()->with('status', "Success! The bot is now tracking {$symbol}.");
+    }
+
+    /**
+     * Remove a currency pair
+     */
+    public function removeAsset($id)
+    {
+        $asset = Asset::findOrFail($id);
+        $symbol = $asset->symbol;
+        
+        $asset->delete();
+
+        return back()->with('status', "Stopped monitoring {$symbol}.");
+    }
 }
