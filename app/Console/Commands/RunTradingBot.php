@@ -65,6 +65,18 @@ class RunTradingBot extends Command
                 $rsi = $this->calculateRSI($closes, 14);
                 $ema200 = $this->calculateEMA($closes, 200);
                 $macdData = $this->calculateMACD($closes);
+                
+                $macdCrossedUp = ($macdData['macd'] > $macdData['signal']);
+                $macdStatus = $macdCrossedUp ? 'BULLISH' : 'BEARISH';
+
+                // --- NEW: SAVE DIAGNOSTICS TO DATABASE ---
+                $asset->update([
+                    'current_price' => $currentPrice,
+                    'ema_200' => $ema200,
+                    'rsi_14' => $rsi,
+                    'macd_status' => $macdStatus
+                ]);
+                // -----------------------------------------
 
                 $openTrade = Trade::where('symbol', $asset->symbol)
                                   ->whereNull('exit_price')

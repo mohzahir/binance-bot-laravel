@@ -24,18 +24,62 @@
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             
-            <div class="bg-gray-800 rounded-lg p-5 border border-gray-700 shadow-lg">
-                <h2 class="text-lg font-semibold mb-4 text-gray-300">📡 Active Watchlist</h2>
-                <ul>
-                    @foreach($assets as $asset)
-                        <li class="flex justify-between items-center py-2 border-b border-gray-700 last:border-0">
-                            <span class="font-medium">{{ $asset->symbol }}</span>
-                            <span class="px-2 py-1 rounded text-xs font-bold {{ $asset->status == 'active' ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300' }}">
-                                {{ strtoupper($asset->status) }}
-                            </span>
-                        </li>
-                    @endforeach
-                </ul>
+            <div class="bg-gray-800 rounded-lg p-5 border border-gray-700 shadow-lg md:col-span-3 mb-6">
+                <h2 class="text-lg font-semibold mb-4 text-gray-300">🧠 Bot Brain Diagnostics (Triple Confluence)</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left whitespace-nowrap">
+                        <thead>
+                            <tr class="text-gray-500 text-sm border-b border-gray-700">
+                                <th class="pb-2">Asset</th>
+                                <th class="pb-2">Live Price</th>
+                                <th class="pb-2">Macro Trend (200 EMA)</th>
+                                <th class="pb-2">Discount (RSI)</th>
+                                <th class="pb-2">Momentum (MACD)</th>
+                                <th class="pb-2">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($assets as $asset)
+                                @php
+                                    // Logic for UI color coding based on your Triple Confluence rules
+                                    $isUptrend = $asset->current_price > $asset->ema_200;
+                                    $isOversold = $asset->rsi_14 < 40;
+                                    $isBullishMacd = $asset->macd_status == 'BULLISH';
+                                @endphp
+                            <tr class="border-b border-gray-700 last:border-0 hover:bg-gray-750">
+                                <td class="py-3 font-bold text-blue-300">{{ $asset->symbol }}</td>
+                                <td class="py-3 text-white">{{ $asset->current_price ?? 'Loading...' }}</td>
+                                
+                                <td class="py-3">
+                                    <span class="px-2 py-1 rounded text-xs font-bold {{ $isUptrend ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300' }}">
+                                        {{ $isUptrend ? 'UPTREND' : 'DOWNTREND' }} ({{ number_format($asset->ema_200, 4) }})
+                                    </span>
+                                </td>
+
+                                <td class="py-3">
+                                    <span class="px-2 py-1 rounded text-xs font-bold {{ $isOversold ? 'bg-green-900 text-green-300' : 'bg-gray-700 text-gray-300' }}">
+                                        {{ number_format($asset->rsi_14, 2) }}
+                                    </span>
+                                </td>
+
+                                <td class="py-3">
+                                    <span class="px-2 py-1 rounded text-xs font-bold {{ $isBullishMacd ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300' }}">
+                                        {{ $asset->macd_status ?? 'WAIT' }}
+                                    </span>
+                                </td>
+                                
+                                <td class="py-3">
+                                    @if($isUptrend && $isOversold && $isBullishMacd)
+                                        <span class="text-green-400 font-bold animate-pulse">⚡ BUYING</span>
+                                    @else
+                                        <span class="text-gray-500 font-medium">Hunting...</span>
+                                    @endif
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             <div class="md:col-span-2 bg-gray-800 rounded-lg p-5 border border-gray-700 shadow-lg">
