@@ -19,6 +19,13 @@ class RunTradingBot extends Command
         $api = new API(env('BINANCE_API_KEY'), env('BINANCE_SECRET_KEY'));
         Log::info("Bot cron executed. Checking markets...");
 
+        // --- 1. GLOBAL KILL SWITCH CHECK ---
+        if (\Illuminate\Support\Facades\Cache::get('bot_status', 'active') === 'paused') {
+            $this->warn("⏸️ Bot is currently PAUSED via Dashboard. Skipping execution.");
+            Log::info("Bot is paused. Sleeping.");
+            return; // Exit the loop entirely.
+        }
+
         // Fetch active assets
         $assets = Asset::where('status', 'active')->get();
 

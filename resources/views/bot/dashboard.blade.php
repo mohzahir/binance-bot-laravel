@@ -15,13 +15,37 @@
                 <h1 class="text-3xl font-bold text-blue-400">Trading Command Center</h1>
                 <p class="text-gray-400 text-sm mt-1">Live Triple-Confluence Algorithm</p>
             </div>
-            <div class="text-right">
-                <p class="text-gray-400 text-sm">Total Net Profit</p>
-                <p class="text-2xl font-bold {{ $totalNetProfit >= 0 ? 'text-green-400' : 'text-red-400' }}">
-                    {{ number_format($totalNetProfit, 2) }} USDT
-                </p>
+            <div class="text-right flex items-center space-x-6">
+                <form action="/toggle-bot" method="POST">
+                    @csrf
+                    @php $botStatus = \Illuminate\Support\Facades\Cache::get('bot_status', 'active'); @endphp
+                    
+                    <button type="submit" class="px-4 py-2 rounded font-bold text-white shadow-lg transition-all {{ $botStatus === 'active' ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700' }}">
+                        {{ $botStatus === 'active' ? '🛑 PAUSE BOT' : '▶️ RESUME BOT' }}
+                    </button>
+                </form>
+
+                <div>
+                    <p class="text-gray-400 text-sm">Total Net Profit</p>
+                    <p class="text-2xl font-bold {{ $totalNetProfit >= 0 ? 'text-green-400' : 'text-red-400' }}">
+                        {{ number_format($totalNetProfit, 2) }} USDT
+                    </p>
+                </div>
             </div>
         </div>
+
+        @if(session('status'))
+            <div class="bg-green-800 border-l-4 border-green-400 text-green-100 p-4 mb-6 rounded shadow-lg">
+                <p class="font-bold">System Notice</p>
+                <p>{{ session('status') }}</p>
+            </div>
+        @endif
+        @if(session('error'))
+            <div class="bg-red-800 border-l-4 border-red-400 text-red-100 p-4 mb-6 rounded shadow-lg">
+                <p class="font-bold">Error</p>
+                <p>{{ session('error') }}</p>
+            </div>
+        @endif
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             
@@ -116,6 +140,14 @@
                                 <td class="py-3">{{ $trade->entry_price }}</td>
                                 <td class="py-3">{{ $trade->quantity }}</td>
                                 <td class="py-3 text-red-400 font-medium">{{ $trade->stop_loss }}</td>
+                                <td class="py-3">
+                                    <form action="/panic-sell/{{ $trade->id }}" method="POST" onsubmit="return confirm('Are you sure you want to market sell this immediately?');">
+                                        @csrf
+                                        <button type="submit" class="bg-red-900 hover:bg-red-700 text-red-200 text-xs font-bold py-1 px-3 rounded border border-red-700 transition-colors">
+                                            ⚡ PANIC SELL
+                                        </button>
+                                    </form>
+                                </td>
                             </tr>
                             @endforeach
                         </tbody>

@@ -13,6 +13,10 @@ Route::domain('bot.hirehub-sd.com')->group(function () {
     Route::middleware('auth.basic')->group(function () {
         
         Route::get('/', [BotDashboardController::class, 'index']);
+
+        // --- NEW ACTION ROUTES ---
+        Route::post('/toggle-bot', [BotDashboardController::class, 'toggleBot']);
+        Route::post('/panic-sell/{tradeId}', [BotDashboardController::class, 'panicSell']);
         
     });
 });

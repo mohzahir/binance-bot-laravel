@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Asset;
 use App\Models\Trade;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class BotDashboardController extends Controller
 {
@@ -49,5 +51,51 @@ class BotDashboardController extends Controller
             'chartDates', 
             'chartProfits'
         ));
+    }
+
+    /**
+     * Toggles the Master Kill Switch
+     */
+    public function toggleBot()
+    {
+        $currentStatus = Cache::get('bot_status', 'active');
+        $newStatus = $currentStatus === 'active' ? 'paused' : 'active';
+        
+        Cache::put('bot_status', $newStatus);
+        
+        $action = $newStatus === 'paused' ? 'PAUSED' : 'RESUMED';
+        Log::info("User manually {$action} the bot via Dashboard.");
+
+        return back()->with('status', "Bot successfully {$newStatus}!");
+    }
+
+    /**
+     * Forces an immediate market sell for a specific trade
+     */
+    public function panicSell($tradeId)
+    {
+        $trade = Trade::whereNull('exit_price')->findOrFail($tradeId);
+        $asset = Asset::where('symbol', $trade->symbol)->first();
+        
+        // Grab the latest price from the diagnostics table we built earlier
+        $currentPrice = $asset->current_price; 
+
+        if (!$currentPrice) {
+            return back()->with('error', "Cannot fetch live price. Wait for next bot cycle.");
+        }
+
+        // **********************************************************
+        // WARNING: If live trading, you must call the Binance API here!
+        // $api = new \Binance\API(env('BINANCE_API_KEY'), env('BINANCE_SECRET_KEY'));
+        // $order = $api->marketSell($trade->symbol, $trade->quantity);
+        // **********************************************************
+
+        // 1. Close the trade in the database
+        $trade->update(['exit_price' => $currentPrice]);
+
+        // 2. Log it
+        Log::info("🚨 PANIC SELL TRIGGERED via Dashboard: {$trade->symbol} at {$currentPrice}");
+
+        return back()->with('status', "Panic Sell Executed for {$trade->symbol}!");
     }
 }
