@@ -10,23 +10,44 @@ class BotDashboardController extends Controller
 {
     public function index()
     {
-        // 1. Fetch the assets the bot is currently monitoring
         $assets = Asset::all();
-
-        // 2. Fetch active positions (trades that haven't been sold yet)
         $openTrades = Trade::whereNull('exit_price')->get();
 
-        // 3. Fetch trade history (last 10 closed trades)
+        // 1. Fetch ALL closed trades chronologically for the Chart
+        $allClosedTrades = Trade::whereNotNull('exit_price')
+                                ->orderBy('updated_at', 'asc')
+                                ->get();
+
+        $cumulativeProfit = 0;
+        $chartDates = [];
+        $chartProfits = [];
+
+        // Build the Equity Curve data points
+        foreach ($allClosedTrades as $trade) {
+            $profit = ($trade->exit_price - $trade->entry_price) * $trade->quantity;
+            $cumulativeProfit += $profit;
+
+            // Push data into arrays for the chart
+            $chartDates[] = $trade->updated_at->format('M d, H:i');
+            $chartProfits[] = round($cumulativeProfit, 2);
+        }
+
+        // 2. Fetch only the last 10 for the History Table (descending order)
         $closedTrades = Trade::whereNotNull('exit_price')
                            ->orderBy('updated_at', 'desc')
                            ->take(10)
                            ->get();
 
-        // 4. Calculate Total Net Profit (USDT)
-        $totalNetProfit = $closedTrades->sum(function ($trade) {
-            return ($trade->exit_price - $trade->entry_price) * $trade->quantity;
-        });
+        $totalNetProfit = $cumulativeProfit;
 
-        return view('bot.dashboard', compact('assets', 'openTrades', 'closedTrades', 'totalNetProfit'));
+        // 3. Pass the new arrays to the Blade view
+        return view('bot.dashboard', compact(
+            'assets', 
+            'openTrades', 
+            'closedTrades', 
+            'totalNetProfit', 
+            'chartDates', 
+            'chartProfits'
+        ));
     }
 }

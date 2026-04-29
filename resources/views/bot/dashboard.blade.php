@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Zahir Algo | Command Center</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 </head>
 <body class="bg-gray-900 text-white font-sans antialiased p-6">
 
@@ -82,6 +83,18 @@
                 </div>
             </div>
 
+            <div class="bg-gray-800 rounded-lg p-5 border border-gray-700 shadow-lg md:col-span-3 mb-6">
+                <h2 class="text-lg font-semibold mb-4 text-gray-300">📈 Cumulative Equity Curve</h2>
+                
+                @if(empty($chartProfits))
+                    <div class="h-64 flex items-center justify-center text-gray-500 italic border border-dashed border-gray-700 rounded-lg">
+                        Waiting for the first trade to close to generate chart...
+                    </div>
+                @else
+                    <div id="equityChart"></div>
+                @endif
+            </div>
+
             <div class="md:col-span-2 bg-gray-800 rounded-lg p-5 border border-gray-700 shadow-lg">
                 <h2 class="text-lg font-semibold mb-4 text-gray-300">🔥 Open Positions</h2>
                 @if($openTrades->isEmpty())
@@ -151,6 +164,51 @@
 
         </div>
     </div>
+
+    @if(!empty($chartProfits))
+    <script>
+        var options = {
+            series: [{
+                name: "Net Profit (USDT)",
+                data: @json($chartProfits) // Inject Laravel array into JS
+            }],
+            chart: {
+                type: 'area',
+                height: 350,
+                toolbar: { show: false },
+                animations: { enabled: false } // Disabled so it doesn't animate wildly every 60s refresh
+            },
+            colors: ['#3b82f6'], // Matches Tailwind blue-500
+            fill: {
+                type: 'gradient',
+                gradient: {
+                    shadeIntensity: 1,
+                    opacityFrom: 0.7,
+                    opacityTo: 0.1,
+                    stops: [0, 90, 100]
+                }
+            },
+            dataLabels: { enabled: false },
+            stroke: {
+                curve: 'smooth',
+                width: 2
+            },
+            xaxis: {
+                categories: @json($chartDates), // Inject timestamps
+                labels: { style: { colors: '#9ca3af' } },
+                tooltip: { enabled: false }
+            },
+            yaxis: {
+                labels: { style: { colors: '#9ca3af' } }
+            },
+            tooltip: { theme: 'dark' },
+            grid: { borderColor: '#374151', strokeDashArray: 4 }
+        };
+
+        var chart = new ApexCharts(document.querySelector("#equityChart"), options);
+        chart.render();
+    </script>
+    @endif
     
     <meta http-equiv="refresh" content="60">
 </body>
