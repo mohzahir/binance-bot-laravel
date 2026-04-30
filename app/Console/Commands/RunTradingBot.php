@@ -217,7 +217,7 @@ class RunTradingBot extends Command
             // WARNING: Uncomment the line below to spend real money!
             // **********************************************************
             
-            // $order = $api->marketBuy($asset->symbol, $formattedQuantity);
+            $order = $api->marketBuy($asset->symbol, $formattedQuantity);
 
             // Mocking a successful order response for testing purposes:
             $order = [
@@ -303,7 +303,7 @@ class RunTradingBot extends Command
                 // **********************************************************
                 // WARNING: Uncomment to execute a real SELL!
                 // **********************************************************
-                // $order = $api->marketSell($trade->symbol, $trade->quantity);
+                $order = $api->marketSell($trade->symbol, $trade->quantity);
 
                 // Mocking response for testing:
                 $order = ['status' => 'FILLED'];
